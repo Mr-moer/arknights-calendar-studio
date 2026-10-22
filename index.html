@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>明日方舟 · 活动日历生成器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-kicker">ARKNIGHTS / EVENT CALENDAR STUDIO</div>
+        <h1>活动日历<span class="accent">生成器</span></h1>
+        <p class="brand-sub">手动录入活动 · 自动排 <b>理智药</b> 与 <b>剿灭</b> · 导出 PNG 海报</p>
+      </div>
+      <div class="top-actions">
+        <button type="button" class="btn ghost" id="btnData">数据</button>
+        <button type="button" class="btn ghost" id="btnAIImport">AI 导入</button>
+        <button type="button" class="btn ghost" id="btnRules">规则说明</button>
+        <button type="button" class="btn ghost" id="btnSamples">示例数据</button>
+        <button type="button" class="btn primary" id="btnExport">导出 PNG</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="panel manager">
+        <div class="panel-head">
+          <div>
+            <span class="eyebrow">EVENT INPUT</span>
+            <h2>活动管理</h2>
+          </div>
+          <span class="count" id="eventCount">0</span>
+        </div>
+
+        <form id="eventForm" autocomplete="off">
+          <label class="field">
+            <span>活动名称</span>
+            <input type="text" id="fieldName" placeholder="例如：昨日海" maxlength="24" required>
+          </label>
+
+          <div class="field-row">
+            <label class="field">
+              <span>开始日期</span>
+              <input type="date" id="fieldStartDate" required>
+            </label>
+            <label class="field">
+              <span>开始时间</span>
+              <input type="time" id="fieldStartTime" value="12:00" required>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field">
+              <span>结束日期</span>
+              <input type="date" id="fieldEndDate" required>
+            </label>
+            <label class="field">
+              <span>结束时间</span>
+              <input type="time" id="fieldEndTime" value="03:59" required>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field">
+              <span>活动类型</span>
+              <select id="fieldType">
+                <option value="SideStory">SideStory</option>
+                <option value="复刻">复刻</option>
+                <option value="签到">签到 / 登录</option>
+                <option value="其他">其他</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>商店状态</span>
+              <select id="fieldShop">
+                <option value="uncleared">商店未搬空</option>
+                <option value="cleared">商店已搬空</option>
+                <option value="none">无商店</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="check-row">
+            <label class="check"><input type="checkbox" id="fieldStages" checked> 有活动关卡（可刷理智）</label>
+            <label class="check"><input type="checkbox" id="fieldForecast"> 预计 / 未确认</label>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn primary small" id="btnSave">添加活动</button>
+            <button type="button" class="btn ghost small hidden" id="btnCancelEdit">取消编辑</button>
+          </div>
+        </form>
+
+        <div class="divider"></div>
+
+        <div class="event-list-head">
+          <span>已录入活动</span>
+          <span class="hint">点卡片编辑 · 点商店状态切换</span>
+        </div>
+        <div id="eventList" class="event-list"></div>
+      </aside>
+
+      <section class="panel calendar-panel">
+        <div class="calendar-toolbar">
+          <div class="month-title">
+            <span id="monthLabel">2026年10月</span>
+            <span id="monthSub">点击日期查看详情</span>
+          </div>
+          <div class="calendar-nav">
+            <button type="button" class="btn icon" id="btnPrev" aria-label="上个月">‹</button>
+            <button type="button" class="btn ghost small" id="btnToday">今天</button>
+            <button type="button" class="btn icon" id="btnNext" aria-label="下个月">›</button>
+          </div>
+        </div>
+
+        <div class="weekdays">
+          <span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+
+        <div class="calendar-foot">
+          <div class="legend">
+            <span class="legend-item"><i class="legend-dot" style="--c:#58b7e8"></i>活动时间</span>
+            <span class="legend-item"><i class="legend-dot" style="--c:#9d8ed8"></i>预计活动</span>
+            <span class="legend-item"><i class="legend-dot" style="--c:#f3b14a"></i>选中 / 今天</span>
+          </div>
+          <span class="hint">左侧只显示时间与色条；推荐内容在右侧当天详情</span>
+        </div>
+      </section>
+
+      <aside class="panel detail-panel" id="dayDetail"></aside>
+    </main>
+
+    <footer class="page-foot">
+      <span><b>非官方排班工具</b> · 活动时间与商店状态由你手动维护 · 推荐结果以游戏内公告为准</span>
+      <span>时间基准：北京时间 / 周一 04:00 周刷新 · 生成器 v1.0</span>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="modal hidden" id="dataModal" role="dialog" aria-modal="true" aria-labelledby="dataTitle">
+    <div class="modal-card data-card">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">DATA PORTABILITY</span>
+          <h3 id="dataTitle">数据导入 / 导出</h3>
+        </div>
+        <button type="button" class="btn icon" id="btnCloseData" aria-label="关闭">×</button>
+      </div>
+
+      <div class="data-actions">
+        <button type="button" class="btn primary" id="btnExportData">导出全部 JSON</button>
+        <label class="btn ghost" for="dataFile">选择 JSON 导入</label>
+        <input type="file" id="dataFile" accept=".json,application/json" hidden>
+      </div>
+
+      <div class="ai-hint" style="margin-top:10px">
+        导出包含全部活动（名称、时间、类型、商店状态、预计标记、备注），不包含 AI Key。导入支持本工具导出的 JSON，也支持直接的事件数组。
+      </div>
+
+      <div class="data-mode">
+        <span class="data-mode-label">导入方式</span>
+        <label class="check"><input type="radio" name="dataImportMode" value="merge" checked> 合并（跳过重复）</label>
+        <label class="check"><input type="radio" name="dataImportMode" value="replace"> 覆盖现有数据</label>
+      </div>
+
+      <div id="dataPreview" class="data-preview">
+        <div class="ai-empty">还没有选择文件。先导出备份，或选择一个 JSON 文件。</div>
+      </div>
+
+      <div id="dataStatus" class="ai-status"></div>
+
+      <div class="data-footer">
+        <button type="button" class="btn primary" id="btnConfirmDataImport" disabled>确认导入</button>
+        <button type="button" class="btn ghost" id="btnCancelDataImport">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="aiModal" role="dialog" aria-modal="true" aria-labelledby="aiTitle">
+    <div class="modal-card ai-card">
+      <div class="modal-head">
+        <div>
+          <span class="eyebrow">AI / OFFICIAL SOURCE IMPORT</span>
+          <h3 id="aiTitle">AI 自动导入活动</h3>
+        </div>
+        <button type="button" class="btn icon" id="btnCloseAI" aria-label="关闭">×</button>
+      </div>
+
+      <div class="ai-tabs">
+        <button type="button" class="ai-tab active" id="aiTabImport" data-ai-tab="import">自动导入</button>
+        <button type="button" class="ai-tab" id="aiTabSettings" data-ai-tab="settings">接口设置</button>
+      </div>
+
+      <section id="aiImportPane">
+        <div class="ai-intro">
+          <div class="ai-intro-icon">AI</div>
+          <div>
+            <b>只从官方社媒 / 公告提取活动时间</b>
+            <span>需要支持联网搜索的模型。结果会先预览，确认后才写入日历；找不到或不确定的活动不会硬编。</span>
+          </div>
+        </div>
+
+        <div class="ai-range-grid">
+          <label class="field">
+            <span>检索开始</span>
+            <input type="date" id="aiFrom">
+          </label>
+          <label class="field">
+            <span>检索结束</span>
+            <input type="date" id="aiTo">
+          </label>
+        </div>
+
+        <div class="ai-source-row">
+          <span class="ai-source-label">官方来源</span>
+          <span class="tag">官网公告</span>
+          <span class="tag">微博 @明日方舟Arknights</span>
+          <span class="tag">官方 B 站 / 公众号</span>
+        </div>
+
+        <div class="ai-actions">
+          <button type="button" class="btn primary" id="btnAISearch">开始搜索</button>
+          <button type="button" class="btn ghost" id="btnAISettingsFromImport">接口设置</button>
+        </div>
+
+        <div id="aiStatus" class="ai-status"></div>
+        <div id="aiResults" class="ai-results"></div>
+
+        <div class="ai-import-footer">
+          <label class="check"><input type="checkbox" id="aiSelectAll"> 全选可导入</label>
+          <span id="aiSelectedCount">0 项</span>
+          <button type="button" class="btn primary" id="btnAIImportSelected" disabled>导入选中</button>
+        </div>
+      </section>
+
+      <section id="aiSettingsPane" class="hidden">
+        <div class="ai-settings-grid">
+          <label class="field">
+            <span>接口模式</span>
+            <select id="aiMode">
+              <option value="proxy">本地代理（推荐）</option>
+              <option value="direct">浏览器直连</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>接口协议</span>
+            <select id="aiProtocol">
+              <option value="deepseek">DeepSeek Search + Chat（推荐）</option>
+              <option value="responses">OpenAI Responses + web_search</option>
+              <option value="chat">OpenAI Chat Completions</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="ai-hint" style="margin-top:8px"><b>DeepSeek</b> 模式会先调用 DeepSeek Search 搜官方页面，再交给 DeepSeek Chat 提取；<b>OpenAI Responses</b> 模式会调用 <code>web_search</code> 工具；Chat 模式需要接口自身支持联网搜索。</div>
+
+        <div id="aiProxyFields" class="ai-field-group">
+          <label class="field">
+            <span>代理地址</span>
+            <input type="text" id="aiProxyUrl" placeholder="/api/ai/import">
+          </label>
+          <div class="ai-hint">
+            代理模式从服务端环境变量读取密钥。在项目目录运行 <code>node server.js</code>，再通过
+            <code>http://127.0.0.1:8787</code> 打开页面即可。
+          </div>
+        </div>
+
+        <div id="aiDirectFields" class="ai-field-group hidden">
+          <label class="field">
+            <span>API Base URL</span>
+            <input type="text" id="aiBaseUrl" placeholder="https://api.openai.com/v1">
+          </label>
+          <label class="field">
+            <span>API Key</span>
+            <input type="password" id="aiApiKey" placeholder="sk-..." autocomplete="off">
+          </label>
+          <label class="check"><input type="checkbox" id="aiRememberKey" checked> 在本机记住 Key（localStorage）</label>
+        </div>
+
+        <label class="field">
+          <span>模型</span>
+          <input type="text" id="aiModel" placeholder="gpt-4.1">
+        </label>
+
+        <div class="ai-settings-actions">
+          <button type="button" class="btn primary" id="btnAISaveSettings">保存设置</button>
+          <button type="button" class="btn ghost" id="btnAITest">测试连接</button>
+          <button type="button" class="btn ghost" id="btnAIBackToImport">返回导入</button>
+        </div>
+
+        <div id="aiSettingsStatus" class="ai-status"></div>
+
+        <div class="ai-security">
+          <b>安全提示</b>
+          <p>直连模式会把 API Key 发到浏览器请求里，只建议在本机临时使用；公开部署请用代理模式。代理模式的 Key 只存在服务端环境变量，不写入前端。</p>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal hidden" id="rulesModal" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="rulesTitle">排班规则说明</h3>
+        <button type="button" class="btn icon" id="btnCloseRules" aria-label="关闭">×</button>
+      </div>
+      <ul class="rules-list">
+        <li><b>周常理智药：</b>每周按 2 瓶 × 120 理智建模，有效期按“领取后第二个周一 04:00”折算为本周周一 04:00 起 14 天。</li>
+        <li><b>优先活动：</b>只在“有活动关卡”的活动里推荐；签到 / 登录类活动没有关卡，不会被当作理智药目标。</li>
+        <li><b>同时覆盖两个活动：</b>当前活动商店未搬空，优先当前活动；当前活动已搬空，则自动留给下一个活动。</li>
+        <li><b>剿灭：</b>每周 5 次 × 25 理智 ≈ 125 理智，1800 合成玉上限；优先选没有活动关卡覆盖的日期。</li>
+        <li><b>活动全覆盖：</b>如果活动关卡覆盖整周，每天都避不开，则任意一天都可刷，默认推荐周一 04:00 刷新后。</li>
+        <li><b>时间边界：</b>活动结束时间为 03:59 时，视为当天 04:00 后已无活动；推荐日按 04:00–次日 04:00 计算。</li>
+        <li><b>预计活动：</b>勾选“预计 / 未确认”的活动会以紫色虚线显示；它仍参与计算，但请以官方公告为准。</li>
+      </ul>
+      <div class="modal-foot">
+        这是玩家侧的排班辅助工具，不代表官方规则。理智药到期、活动商店关闭、剿灭上限等最终以游戏内显示为准。
+      </div>
+    </div>
+  </div>
+
+  <script src="calendar-core.js"></script>
+  <script src="ai.js?v=2"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
